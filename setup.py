@@ -1,4 +1,13 @@
 from setuptools import find_packages, setup
+import os
+
+try:
+    import pypandoc
+
+    README = pypandoc.convert(os.path.join(os.path.dirname(__file__), 'README.md'), 'rst')
+except (ImportError, OSError):
+    print("Can't convert readme")
+    README = ""
 
 setup(
     name='py_elf_structs',
