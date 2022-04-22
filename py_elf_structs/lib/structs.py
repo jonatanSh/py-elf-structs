@@ -22,16 +22,17 @@ class LazyResolveStruct(object):
         self.struct_name = struct_name
         self.endian = endian
         self.has_padding = has_padding
+        self.__struct_name__ = struct_name
 
     def resolve(self, structs):
         # Reference for struct inside a struct
         # https://github.com/andreax79/python-cstruct/blob/master/examples/who.py
-        for struct_name, struct in structs.items():
-            if struct_name in self.struct_definition.values():
+        for struct in structs:
+            if struct.__struct_name__ in self.struct_definition.values():
                 for key in self.struct_definition:
-                    if self.struct_definition[key] == struct_name:
+                    if self.struct_definition[key] == struct.__struct_name__:
                         del self.struct_definition[key]
-                        self.struct_definition["struct {}".format(struct_name)] = key
+                        self.struct_definition[key] = "struct {}".format(struct.__struct_name__)
         try:
             return build_struct(self.struct_name,
                                 "\n".join(
@@ -41,6 +42,7 @@ class LazyResolveStruct(object):
         except Exception as e:
             log_traceback()
             logging.info("Resolve exception: {}".format(e))
+            logging.info("Struct definition: {}".format(self.struct_definition))
 
 
 def recursively_resolve_remaining_structs(structs, lazy_resolvers):
@@ -69,7 +71,9 @@ def recursively_resolve_remaining_structs(structs, lazy_resolvers):
             resolved_struct = struct.resolve(structs)
             if resolved_struct:
                 lazy_resolvers.remove(struct)
-                structs[struct.struct_name] = resolved_struct
+                for i in xrange(len(structs)):
+                    if structs[i].__struct_name__ == struct.struct_name:
+                        structs[i] = resolved_struct
 
         for resolver in resolvers_to_remove:
             resolver.remove(resolver)
@@ -77,13 +81,12 @@ def recursively_resolve_remaining_structs(structs, lazy_resolvers):
 
     # Now removing all lazy resolve objects
     keys_to_delete = []
-    for key in structs:
-        value = structs[key]
-        if isinstance(value, LazyResolveStruct):
-            keys_to_delete.append(key)
+    for struct in structs:
+        if isinstance(struct, LazyResolveStruct):
+            keys_to_delete.append(struct)
 
     for key in keys_to_delete:
-        del structs[key]
+        structs.remove(key)
 
     return structs
 
@@ -94,6 +97,7 @@ def build_struct(struct_name, c_struct, endian, has_padding):
         __endian__ = endian
         __has_padding__ = has_padding
         __struct_name__ = struct_name
+        __name__ = __struct_name__
 
         if endian == "little":
             __byte_order__ = cstruct.LITTLE_ENDIAN
@@ -114,6 +118,7 @@ def build_struct(struct_name, c_struct, endian, has_padding):
         else:
             raise Exception("Unknown endian: {}".format(endian))
 
+    logging.info("Caching struct: {}".format(struct_name))
     cstruct.STRUCTS[struct_name] = Struct
 
     return Struct
@@ -161,6 +166,10 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
     last_sizes = []
     children = [child for child in pyelf_child.iter_children()]
     struct_extra_padding = 0
+    logging.info("Struct: {} has {} members".format(
+        pyelf_child.get_full_path(),
+        len(children)
+    ))
     for i, child in enumerate(children):
         next_child_offset = None
         current_offset = child.attributes['DW_AT_data_member_location'].value
@@ -175,7 +184,7 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
             else:
                 next_child_offset = next_child_offset_in_struct
         else:
-            next_offset = total_size
+            next_offset = total_size - current_offset
         type_information = type_information_resolve_recursively(
             dwarf=dwarf,
             child=child,
@@ -222,6 +231,7 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
                                 ["{} {};".format(str(child_definition[key]), str(key)) for key in child_definition]),
                             endian, has_padding)
     except Exception as e:
+        logging.info("Simple resolve error: {}".format(e))
         # Maybe this struct is recursive and we should lazy resolve it ?
         return LazyResolveStruct(child_definition, pyelf_child.get_full_path(),
                                  endian, has_padding)

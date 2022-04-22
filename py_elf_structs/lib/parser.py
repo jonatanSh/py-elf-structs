@@ -22,7 +22,7 @@ class StructHolder(object):
 
     def __getstate__(self):
         pickled_object = []
-        for struct_name, struct in self.___structs.items():
+        for struct in self.___structs:
             pickled_object.append({
                 "c_struct": struct.__struct__,
                 "endian": struct.__endian__,
@@ -32,20 +32,20 @@ class StructHolder(object):
         return pickled_object
 
     def __setstate__(self, state):
-        self.___structs = {}
+        self.___structs = []
         for obj in state:
-            self.___structs[obj['struct_name']] = build_struct(**obj)
+            self.___structs.append(build_struct(**obj))
 
     def display(self):
-        for key in self.___structs:
+        for struct in self.___structs:
             print("-" * 30)
-            print(key)
-            print(self.___structs[key].__struct__)
+            print(struct.__struct_name__)
+            print(struct.__struct__)
             print("-" * 30)
 
 
 def parse_elf_and_get_structs(elf_path):
-    structs = {}
+    structs = []
     lazy_resolve = []
     logging.info("Parsing: {}".format(elf_path))
     with open(elf_path, 'rb') as fp:
@@ -70,12 +70,12 @@ def parse_elf_and_get_structs(elf_path):
                                                                    endian)
                         if isinstance(struct_obj, LazyResolveStruct):
                             lazy_resolve.append(struct_obj)
-                        structs[child.get_full_path()] = struct_obj
+                        structs.append(struct_obj)
                     except (TypeInformationNotFound, StructBuildException, Exception) as e:
                         logging.info("Parsing exception: {}".format(e))
 
     # Actually this function should be recursive !
     # Because one struct can define many structs !
     structs = recursively_resolve_remaining_structs(structs=structs, lazy_resolvers=lazy_resolve)
-    logging.info("Found: {} structs".format(len(structs.keys())))
+    logging.info("Found: {} structs".format(len(structs)))
     return StructHolder(structs)

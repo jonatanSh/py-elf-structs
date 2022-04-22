@@ -13,7 +13,7 @@ struct command {
 
 struct command_with_args {
     char arg1[128];
-    struct command;
+    struct command command;
 };
 /*
     Ignore this part it is only done for disabling optimization
