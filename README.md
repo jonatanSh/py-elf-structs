@@ -8,7 +8,7 @@ First lets write our elf:
 
 ```c
 struct command {
-    char command[128];
+    char command[64];
 };
 
 struct command_with_args {

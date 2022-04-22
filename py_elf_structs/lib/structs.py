@@ -160,6 +160,7 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
     has_padding = {"little": False, "big": False}
     last_sizes = []
     children = [child for child in pyelf_child.iter_children()]
+    struct_extra_padding = 0
     for i, child in enumerate(children):
         next_child_offset = None
         current_offset = child.attributes['DW_AT_data_member_location'].value
@@ -173,6 +174,8 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
                 next_child_offset = next_child_offset_in_struct[1]
             else:
                 next_child_offset = next_child_offset_in_struct
+        else:
+            next_offset = total_size
         type_information = type_information_resolve_recursively(
             dwarf=dwarf,
             child=child,
@@ -204,14 +207,15 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
             total_calculated_size += type_size
         elif next_offset >= type_size:
             total_calculated_size += next_offset
+            struct_extra_padding = next_offset % type_size
             array_size = next_offset / type_size
             if array_size > 1:
                 attribute_name = attribute_name + "[{}]".format(array_size)
         child_definition[attribute_name] = complex_gcc_types_resolve(type_name)
 
-    if total_calculated_size < total_size:
+    if struct_extra_padding != 0:
         has_padding["little"] = True
-        child_definition["__padding__[{}]".format(total_size - total_calculated_size)] = "char"
+        child_definition["__padding__[{}]".format(struct_extra_padding)] = "char"
     try:
         return build_struct(pyelf_child.get_full_path(),
                             "\n".join(
