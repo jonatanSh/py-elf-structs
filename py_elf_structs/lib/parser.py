@@ -2,7 +2,7 @@ from structs import build_struct_from_pyelf_child, \
     TypeInformationNotFound, StructBuildException, LazyResolveStruct, recursively_resolve_remaining_structs, \
     build_struct
 from elftools.elf.elffile import ELFFile
-
+import logging
 
 class StructHolder(object):
     def __init__(self, structs):
@@ -46,6 +46,7 @@ class StructHolder(object):
 def parse_elf_and_get_structs(elf_path):
     structs = {}
     lazy_resolve = []
+    logging.info("Parsing: {}".format(elf_path))
     with open(elf_path) as fp:
         elf = ELFFile(fp)
         if not elf.has_dwarf_info():
@@ -54,12 +55,14 @@ def parse_elf_and_get_structs(elf_path):
         endian = 'big'
         if dwarf.config.little_endian:
             endian = "little"
+        logging.info("Elf endian: {}".format(endian))
         cus = [c for c in dwarf.iter_CUs()]
         dies = [c.get_top_DIE() for c in cus]
 
         for die in dies:
             for child in die.iter_children():
                 if child.tag == "DW_TAG_structure_type":
+                    logging.info("Parsing struct: {}".format(child.get_full_path()))
                     try:
                         struct_obj = build_struct_from_pyelf_child(dwarf,
                                                                    child,
@@ -68,7 +71,7 @@ def parse_elf_and_get_structs(elf_path):
                             lazy_resolve.append(struct_obj)
                         structs[child.get_full_path()] = struct_obj
                     except (TypeInformationNotFound, StructBuildException, Exception) as e:
-                        pass
+                        logging.info("Parsing exception: {}".format(e))
 
     # Actually this function should be recursive !
     # Because one struct can define many structs !
