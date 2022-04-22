@@ -2,6 +2,7 @@ import sys
 from py_elf_structs.lib.parser import parse_elf_and_get_structs
 import json
 import logging
+from py_elf_structs import generate_structs
 
 
 def print_usage_and_exit():
@@ -21,16 +22,11 @@ verbose = False
 verbose_arg = '' if len(sys.argv) < 4 else sys.argv[3]
 
 if verbose_arg.lower() in ["verbose", 'true', '-v']:
-    logging.basicConfig(level=logging.INFO)
+    verbose = True
 elif verbose_arg:
     print("Unknown option for verbose use -v")
     print_usage_and_exit()
 
-structs = parse_elf_and_get_structs(src_file)
-with open(output_file, "w") as fp:
-    fp.write(json.dumps(structs.__getstate__(), indent=2))
-
-print("Type information for {} generated {}".format(
-    src_file,
-    output_file
-))
+generate_structs(src_file=src_file,
+                 output_file=output_file,
+                 is_verbose=verbose)

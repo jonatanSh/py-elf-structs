@@ -58,3 +58,14 @@ command_with_args.pack()
 # Unpack is also supported
 command_with_args = structs.command_with_args.unpack("<stream>")
 ```
+
+You can also use a python api to generate the structs.json file:
+```python
+from py_elf_structs import generate_structs
+src_file="a.out"
+output_file="/tmp/structs.json"
+verbose=True
+generate_structs(src_file=src_file,
+                 output_file=output_file,
+                 is_verbose=verbose)
+```
