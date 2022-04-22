@@ -71,7 +71,7 @@ def recursively_resolve_remaining_structs(structs, lazy_resolvers):
             resolved_struct = struct.resolve(structs)
             if resolved_struct:
                 lazy_resolvers.remove(struct)
-                for i in xrange(len(structs)):
+                for i in range(len(structs)):
                     if structs[i].__struct_name__ == struct.struct_name:
                         structs[i] = resolved_struct
 
