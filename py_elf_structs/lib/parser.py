@@ -1,8 +1,9 @@
-from structs import build_struct_from_pyelf_child, \
+from py_elf_structs.lib.structs import build_struct_from_pyelf_child, \
     TypeInformationNotFound, StructBuildException, LazyResolveStruct, recursively_resolve_remaining_structs, \
     build_struct
 from elftools.elf.elffile import ELFFile
 import logging
+
 
 class StructHolder(object):
     def __init__(self, structs):
@@ -37,17 +38,17 @@ class StructHolder(object):
 
     def display(self):
         for key in self.___structs:
-            print "-" * 30
-            print key
-            print self.___structs[key].__struct__
-            print "-" * 30
+            print("-" * 30)
+            print(key)
+            print(self.___structs[key].__struct__)
+            print("-" * 30)
 
 
 def parse_elf_and_get_structs(elf_path):
     structs = {}
     lazy_resolve = []
     logging.info("Parsing: {}".format(elf_path))
-    with open(elf_path) as fp:
+    with open(elf_path, 'rb') as fp:
         elf = ELFFile(fp)
         if not elf.has_dwarf_info():
             raise Exception("Dwarf information not found on elf")
@@ -76,4 +77,5 @@ def parse_elf_and_get_structs(elf_path):
     # Actually this function should be recursive !
     # Because one struct can define many structs !
     structs = recursively_resolve_remaining_structs(structs=structs, lazy_resolvers=lazy_resolve)
+    logging.info("Found: {} structs".format(len(structs.keys())))
     return StructHolder(structs)

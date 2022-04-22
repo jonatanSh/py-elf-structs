@@ -1,5 +1,7 @@
 import cstruct
 from collections import OrderedDict
+import logging
+from py_elf_structs.lib.utils import log_traceback
 
 
 class TypeInformationNotFound(Exception):
@@ -33,11 +35,12 @@ class LazyResolveStruct(object):
         try:
             return build_struct(self.struct_name,
                                 "\n".join(
-                                    ["{} {};".format(self.struct_definition[key], key) for key in
+                                    ["{} {};".format(str(self.struct_definition[key]), str(key)) for key in
                                      self.struct_definition]),
                                 self.endian, self.has_padding)
         except Exception as e:
-            pass
+            log_traceback()
+            logging.info("Resolve exception: {}".format(e))
 
 
 def recursively_resolve_remaining_structs(structs, lazy_resolvers):
@@ -87,7 +90,7 @@ def recursively_resolve_remaining_structs(structs, lazy_resolvers):
 
 def build_struct(struct_name, c_struct, endian, has_padding):
     class Struct(cstruct.CStruct):
-        __struct__ = c_struct
+        __struct__ = str(c_struct)
         __endian__ = endian
         __has_padding__ = has_padding
         __struct_name__ = struct_name
@@ -97,12 +100,12 @@ def build_struct(struct_name, c_struct, endian, has_padding):
         else:
             __byte_order__ = cstruct.BIG_ENDIAN
 
-        def __init__(self, **kwargs):
+        def __init__(self, *args, **kwargs):
             if has_padding['little']:
                 kwargs.update({"__padding__": ""})
             if has_padding["big"]:
                 kwargs.update({"__big__endian__padding__": ""})
-            super(Struct, self).__init__(**kwargs)
+            super(Struct, self).__init__(*args, **kwargs)
 
         if endian == "little":
             __byte__order = cstruct.LITTLE_ENDIAN
@@ -140,6 +143,8 @@ def type_information_resolve_recursively(dwarf, child, parent):
 def complex_gcc_types_resolve(type_name):
     if type_name == "short unsigned int":
         return "short"
+    if type(type_name) is bytes:
+        type_name = type_name.decode("utf-8")
     return type_name
 
 
@@ -209,7 +214,8 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
         child_definition["__padding__[{}]".format(total_size - total_calculated_size)] = "char"
     try:
         return build_struct(pyelf_child.get_full_path(),
-                            "\n".join(["{} {};".format(child_definition[key], key) for key in child_definition]),
+                            "\n".join(
+                                ["{} {};".format(str(child_definition[key]), str(key)) for key in child_definition]),
                             endian, has_padding)
     except Exception as e:
         # Maybe this struct is recursive and we should lazy resolve it ?

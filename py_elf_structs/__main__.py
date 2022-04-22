@@ -27,7 +27,7 @@ elif verbose_arg:
     print_usage_and_exit()
 
 structs = parse_elf_and_get_structs(src_file)
-with open(output_file, "wb") as fp:
+with open(output_file, "w") as fp:
     fp.write(json.dumps(structs.__getstate__(), indent=2))
 
 print("Type information for {} generated {}".format(
