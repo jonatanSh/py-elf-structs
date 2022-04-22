@@ -208,7 +208,7 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
         elif next_offset >= type_size:
             total_calculated_size += next_offset
             struct_extra_padding = next_offset % type_size
-            array_size = next_offset / type_size
+            array_size = int(next_offset / type_size)
             if array_size > 1:
                 attribute_name = attribute_name + "[{}]".format(array_size)
         child_definition[attribute_name] = complex_gcc_types_resolve(type_name)
