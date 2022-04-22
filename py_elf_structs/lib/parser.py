@@ -8,14 +8,23 @@ import logging
 class StructHolder(object):
     def __init__(self, structs):
         self.___structs = structs
+        self._struct_map = {}
 
     def __getattr__(self, item):
-        if item in ["___structs", "__repr__", "__str__", "display"]:
+        if item in ["___structs", "__repr__", "__str__", "display", '_struct_map', 'struct_map']:
             return super(StructHolder, self).__getattribute__(item)
-        return self.___structs[item]
+
+        return self.struct_map[item]
+
+    @property
+    def struct_map(self):
+        if not self._struct_map:
+            for struct in self.___structs:
+                self._struct_map[struct.__struct_name__] = struct
+        return self._struct_map
 
     def __repr__(self):
-        return repr(self.___structs)
+        return repr(self.struct_map)
 
     def __str__(self):
         return repr(self)
@@ -77,5 +86,6 @@ def parse_elf_and_get_structs(elf_path):
     # Actually this function should be recursive !
     # Because one struct can define many structs !
     structs = recursively_resolve_remaining_structs(structs=structs, lazy_resolvers=lazy_resolve)
+    structs = set(structs)
     logging.info("Found: {} structs".format(len(structs)))
     return StructHolder(structs)
