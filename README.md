@@ -69,3 +69,46 @@ generate_structs(src_file=src_file,
                  output_file=output_file,
                  is_verbose=verbose)
 ```
+
+# Protected attributes
+Attribute with the name size is used by the parser therefor if a struct contain a variable named
+size it is replaced by _size
+eg ..
+```c
+struct my_struct {
+    int size;
+}
+```
+python api:
+```python
+from py_elf_structs import load_structs
+structs = load_structs("/tmp/structs.json")
+structs.my_struct(_size=2)
+```
+
+# Struct alignment
+Struct maybe aligned to sizeof(ptr) therefore we should support this
+eg ...
+```c
+struct command {
+    unsigned int address;
+    unsigned short value;
+};
+```
+The resulting cstruct is:
+```c
+struct command {
+    unsigned int address;
+    unsigned short value[2];
+};
+```
+Because this struct is aligned to 4 it is handled by the api and you can create this struct anyway:
+```python
+from py_elf_structs import load_structs
+
+structs = load_structs("/tmp/structs.json")
+
+structs.command(address=1, value=2)
+# This will create the struct and fix value to be an array
+```
+

@@ -1,7 +1,4 @@
 import sys
-from py_elf_structs.lib.parser import parse_elf_and_get_structs
-import json
-import logging
 from py_elf_structs import generate_structs
 
 

@@ -36,7 +36,8 @@ class StructHolder(object):
                 "c_struct": struct.__struct__,
                 "endian": struct.__endian__,
                 "has_padding": struct.__has_padding__,
-                "struct_name": struct.__struct_name__
+                "struct_name": struct.__struct_name__,
+                "maybe_aligned": struct.__maybe_aligned__
             })
         return pickled_object
 

@@ -17,12 +17,13 @@ class LazyResolveStruct(object):
     This class is used in the recursive resolver, read its documentation
     """
 
-    def __init__(self, struct_definition, struct_name, endian, has_padding):
+    def __init__(self, struct_definition, struct_name, endian, has_padding, maybe_aligned):
         self.struct_definition = struct_definition
         self.struct_name = struct_name
         self.endian = endian
         self.has_padding = has_padding
         self.__struct_name__ = struct_name
+        self.maybe_aligned = maybe_aligned
 
     def resolve(self, structs):
         # Reference for struct inside a struct
@@ -38,7 +39,7 @@ class LazyResolveStruct(object):
                                 "\n".join(
                                     ["{} {};".format(str(self.struct_definition[key]), str(key)) for key in
                                      self.struct_definition]),
-                                self.endian, self.has_padding)
+                                self.endian, self.has_padding, self.maybe_aligned)
         except Exception as e:
             log_traceback()
             logging.info("Resolve exception: {}".format(e))
@@ -91,13 +92,14 @@ def recursively_resolve_remaining_structs(structs, lazy_resolvers):
     return structs
 
 
-def build_struct(struct_name, c_struct, endian, has_padding):
+def build_struct(struct_name, c_struct, endian, has_padding, maybe_aligned):
     class Struct(cstruct.CStruct):
         __struct__ = str(c_struct)
         __endian__ = endian
         __has_padding__ = has_padding
         __struct_name__ = struct_name
         __name__ = __struct_name__
+        __maybe_aligned__ = maybe_aligned
 
         if endian == "little":
             __byte_order__ = cstruct.LITTLE_ENDIAN
@@ -109,6 +111,19 @@ def build_struct(struct_name, c_struct, endian, has_padding):
                 kwargs.update({"__padding__": ""})
             if has_padding["big"]:
                 kwargs.update({"__big__endian__padding__": ""})
+
+            # Quick fixup for variables falling in the stack alignment space
+            if '[' in self.__maybe_aligned__:
+                maybe_aligned_name = self.__maybe_aligned__[:self.__maybe_aligned__.find("[")]
+                maybe_aligned_value = None
+                if maybe_aligned_name in kwargs:
+                    maybe_aligned_value = kwargs[maybe_aligned_name]
+                if type(maybe_aligned_value) not in (list, set):
+                    maybe_aligned_value = [maybe_aligned_value]
+
+                if maybe_aligned_value:
+                    kwargs[maybe_aligned_name] = maybe_aligned_value
+
             super(Struct, self).__init__(*args, **kwargs)
 
         if endian == "little":
@@ -165,10 +180,12 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
     has_padding = {"little": False, "big": False}
     last_sizes = []
     children = [child for child in pyelf_child.iter_children()]
+    maybe_aligned = ""
     struct_extra_padding = 0
-    logging.info("Struct: {} has {} members".format(
+    logging.info("Struct: {} has {} members, size: {}".format(
         pyelf_child.get_full_path(),
-        len(children)
+        len(children),
+        total_size
     ))
     for i, child in enumerate(children):
         next_child_offset = None
@@ -197,7 +214,6 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
             Should recursively iterate children
             """
             raise Exception("Probably a function typedef not supported for now")
-
         type_name = type_information.attributes['DW_AT_name'].value
         if not type_name:
             raise TypeInformationNotFound("Type name error got None struct: {} child: {}".format(
@@ -220,6 +236,11 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
             array_size = int(next_offset / type_size)
             if array_size > 1:
                 attribute_name = attribute_name + "[{}]".format(array_size)
+                if i == len(children) - 1:
+                    maybe_aligned = attribute_name
+                    logging.info("Attribute {} may be aligned".format(
+                        attribute_name
+                    ))
         child_definition[attribute_name] = complex_gcc_types_resolve(type_name)
 
     if struct_extra_padding != 0:
@@ -229,9 +250,9 @@ def build_struct_from_pyelf_child(dwarf, pyelf_child, endian):
         return build_struct(pyelf_child.get_full_path(),
                             "\n".join(
                                 ["{} {};".format(str(child_definition[key]), str(key)) for key in child_definition]),
-                            endian, has_padding)
+                            endian, has_padding, maybe_aligned=maybe_aligned)
     except Exception as e:
         logging.info("Simple resolve error: {}".format(e))
         # Maybe this struct is recursive and we should lazy resolve it ?
         return LazyResolveStruct(child_definition, pyelf_child.get_full_path(),
-                                 endian, has_padding)
+                                 endian, has_padding, maybe_aligned=maybe_aligned)
