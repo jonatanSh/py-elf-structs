@@ -24,7 +24,7 @@ class StructHolder(object):
         return self._struct_map
 
     def __repr__(self):
-        return repr(self.struct_map)
+        return repr(list(self.struct_map.keys()))
 
     def __str__(self):
         return repr(self)
@@ -43,8 +43,20 @@ class StructHolder(object):
 
     def __setstate__(self, state):
         self.___structs = []
-        for obj in state:
-            self.___structs.append(build_struct(**obj))
+        last_exception = None
+        structs_to_remove = [1]
+        while structs_to_remove:
+            structs_to_remove = []
+            for obj in state:
+                try:
+                    self.___structs.append(build_struct(**obj))
+                    structs_to_remove.append(obj)
+                except Exception as e:
+                    last_exception = e
+            for struct in structs_to_remove:
+                state.remove(struct)
+        if state:
+            raise last_exception
 
     def display(self):
         for struct in self.___structs:
