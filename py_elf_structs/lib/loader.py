@@ -9,6 +9,6 @@ def load_structs(path_to_pickled_object):
     with open(path_to_pickled_object, "rb") as fp:
         data = json.load(fp)
 
-    structs = StructHolder(None)
+    structs = StructHolder(None, None)
     structs.__setstate__(data)
     return structs

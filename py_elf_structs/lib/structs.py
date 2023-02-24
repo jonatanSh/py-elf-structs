@@ -2,6 +2,20 @@ import cstruct
 from collections import OrderedDict
 import logging
 from py_elf_structs.lib.utils import log_traceback
+import sys
+
+
+def populate_ctypes(is_64_bit=False):
+    if is_64_bit:
+        sys.modules['cstruct'].C_TYPE_TO_FORMAT['short int'] = 'i'
+        sys.modules['cstruct'].C_TYPE_TO_FORMAT['unsigned short int'] = 'i'
+        sys.modules['cstruct'].C_TYPE_TO_FORMAT['int'] = 'q'
+        sys.modules['cstruct'].C_TYPE_TO_FORMAT['unsigned int'] = 'Q'
+        sys.modules['cstruct'].C_TYPE_TO_FORMAT['long'] = 'q'
+        sys.modules['cstruct'].C_TYPE_TO_FORMAT['unsigned long'] = 'Q'
+        sys.modules['cstruct'].C_TYPE_TO_FORMAT['unsigned long int'] = 'Q'
+
+        sys.modules['cstruct'].C_TYPE_TO_FORMAT['long long'] = 'Q'
 
 
 class TypeInformationNotFound(Exception):

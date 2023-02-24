@@ -1,14 +1,15 @@
 from py_elf_structs.lib.structs import build_struct_from_pyelf_child, \
     TypeInformationNotFound, StructBuildException, LazyResolveStruct, recursively_resolve_remaining_structs, \
-    build_struct
+    build_struct, populate_ctypes
 from elftools.elf.elffile import ELFFile
 import logging
 
 
 class StructHolder(object):
-    def __init__(self, structs):
+    def __init__(self, structs, bits):
         self.___structs = structs
         self._struct_map = {}
+        self.bits = bits
 
     def __getattr__(self, item):
         if item in ["___structs", "__repr__", "__str__", "display", '_struct_map', 'struct_map']:
@@ -39,12 +40,15 @@ class StructHolder(object):
                 "struct_name": struct.__struct_name__,
                 "maybe_aligned": struct.__maybe_aligned__
             })
-        return pickled_object
+        return {"objects": pickled_object, "bits": self.bits}
 
-    def __setstate__(self, state):
+    def __setstate__(self, objects):
         self.___structs = []
         last_exception = None
         structs_to_remove = [1]
+        state = objects["objects"]
+        self.bits = objects["bits"]
+        populate_ctypes(is_64_bit=(self.bits == 64))
         while structs_to_remove:
             structs_to_remove = []
             for obj in state:
@@ -81,7 +85,14 @@ def parse_elf_and_get_structs(elf_path):
         logging.info("Elf endian: {}".format(endian))
         cus = [c for c in dwarf.iter_CUs()]
         dies = [c.get_top_DIE() for c in cus]
-
+        eclass = elf.header.e_ident.EI_CLASS
+        if eclass == "ELFCLASS32":
+            bits = 32
+        elif eclass == "ELFCLASS64":
+            bits = 64
+        else:
+            raise Exception("Unknown elf class")
+        populate_ctypes(is_64_bit=(bits == 64))
         for die in dies:
             for child in die.iter_children():
                 if child.tag == "DW_TAG_structure_type":
@@ -101,4 +112,4 @@ def parse_elf_and_get_structs(elf_path):
     structs = recursively_resolve_remaining_structs(structs=structs, lazy_resolvers=lazy_resolve)
     structs = set(structs)
     logging.info("Found: {} structs".format(len(structs)))
-    return StructHolder(structs)
+    return StructHolder(structs, bits=bits)
