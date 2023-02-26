@@ -105,7 +105,7 @@ def parse_elf_and_get_structs(elf_path):
                             lazy_resolve.append(struct_obj)
                         structs.append(struct_obj)
                     except (TypeInformationNotFound, StructBuildException, Exception) as e:
-                        logging.info("Parsing exception: {}".format(e))
+                        logging.info("Parsing exception: {}, exception type: {}".format(e, type(e)))
 
     # Actually this function should be recursive !
     # Because one struct can define many structs !

@@ -3,6 +3,7 @@ from collections import OrderedDict
 import logging
 from py_elf_structs.lib.utils import log_traceback
 import sys
+from itertools import permutations
 
 
 def populate_ctypes(is_64_bit=False):
@@ -175,10 +176,13 @@ def type_information_resolve_recursively(dwarf, child, parent):
 
 
 def complex_gcc_types_resolve(type_name):
-    if type_name == "short unsigned int":
-        return "short"
-    if type(type_name) is bytes:
-        type_name = type_name.decode("utf-8")
+    sub_types = type_name.split(" ")
+    for permutation in permutations(sub_types, len(sub_types)):
+        permutation = " ".join(permutation)
+        if permutation in sys.modules['cstruct'].C_TYPE_TO_FORMAT:
+            return permutation
+
+    logging.warn("type: {} not in C_TYPE_TO_FORMAT".format(type_name))
     return type_name
 
 
