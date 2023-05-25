@@ -11,7 +11,7 @@ except (ImportError, OSError) as e:
 
 setup(
     name='py_elf_structs',
-    version='1.4.1',
+    version='1.4.2',
     packages=find_packages(),
     include_package_data=True,
     install_requires=['cstruct==1.8', 'pyelftools'],

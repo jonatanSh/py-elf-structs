@@ -78,27 +78,24 @@ def recursively_resolve_remaining_structs(structs, lazy_resolvers):
     C can only be declared after b has been declared and the same is true for b.
     therefore we recursively try to resolve this structs until no change detect
     """
-    post_resolve_len = len(structs) + 1
-    pre_resolve_len = len(structs)
-    while pre_resolve_len != post_resolve_len:
-        pre_resolve_len = len(structs)
-        resolvers_to_remove = []
+    can_resolve = True
+    while can_resolve:
+        can_resolve = False
         for struct in lazy_resolvers:
+            logging.info("LazyResolver resolving: {}".format(struct.struct_name))
             resolved_struct = struct.resolve(structs)
             if resolved_struct:
+                can_resolve = True
                 lazy_resolvers.remove(struct)
                 for i in range(len(structs)):
                     if structs[i].__struct_name__ == struct.struct_name:
                         structs[i] = resolved_struct
 
-        for resolver in resolvers_to_remove:
-            resolver.remove(resolver)
-        post_resolve_len = len(structs)
-
     # Now removing all lazy resolve objects
     keys_to_delete = []
     for struct in structs:
         if isinstance(struct, LazyResolveStruct):
+            logging.info("Couldn't resolve: {}".format(struct.struct_name))
             keys_to_delete.append(struct)
 
     for key in keys_to_delete:

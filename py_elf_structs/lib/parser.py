@@ -102,6 +102,7 @@ def parse_elf_and_get_structs(elf_path):
                                                                    child,
                                                                    endian)
                         if isinstance(struct_obj, LazyResolveStruct):
+                            logging.info("Going to lazy resolving: {}".format(struct_obj.struct_name))
                             lazy_resolve.append(struct_obj)
                         structs.append(struct_obj)
                     except (TypeInformationNotFound, StructBuildException, Exception) as e:
